@@ -14,18 +14,38 @@ interface TraceViewerProps {
   traceId: string;
   isOpen: boolean;
   onClose: () => void;
+  initialTraceData?: Trace | null;
 }
 
-export function TraceViewer({ traceId, isOpen, onClose }: TraceViewerProps) {
-  const [trace, setTrace] = useState<Trace | null>(null);
+export function TraceViewer({ traceId, isOpen, onClose, initialTraceData }: TraceViewerProps) {
+  const [trace, setTrace] = useState<Trace | null>(initialTraceData || null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch trace data when the component mounts or traceId changes
   useEffect(() => {
     if (isOpen && traceId) {
+      // If initialTraceData is provided and its ID matches the current traceId, use it directly.
+      if (initialTraceData && initialTraceData.id === traceId) {
+        console.log(`TraceViewer: Using initialTraceData for ${traceId}`);
+        setTrace(initialTraceData);
+        setLoading(false);
+        setError(null);
+        return; // Skip fetching
+      }
+      
+      // If we have a cached trace and its ID matches, but it wasn't the initial one (e.g. navigating back/forth)
+      // Or if initialTraceData was for a different traceId
+      if (trace && trace.id === traceId && !initialTraceData) { // Only re-use if not explicitly overridden by a different initialTraceData
+          console.log(`TraceViewer: Re-using already loaded trace data for ${traceId}`);
+          setLoading(false);
+          setError(null);
+          return;
+      }
+
       console.log(`TraceViewer: Opening trace ${traceId}`);
       setLoading(true);
+      setTrace(null); // Clear previous trace if IDs don't match
       setError(null);
       
       // Add retry logic with exponential backoff for better resilience
@@ -56,7 +76,7 @@ export function TraceViewer({ traceId, isOpen, onClose }: TraceViewerProps) {
       
       fetchTrace();
     }
-  }, [traceId, isOpen]);
+  }, [traceId, isOpen, initialTraceData, trace]);
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>

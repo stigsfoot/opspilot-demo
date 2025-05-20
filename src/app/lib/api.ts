@@ -116,11 +116,13 @@ export async function sendMessage(
     const processedImages = images?.map(img => {
       // Only send the base64 data, not the full image object
       // Also compress/optimize large images to avoid 500 errors
-      if (img.base64Data && img.base64Data.length > 500000) {
-        console.log(`Optimizing image ${img.id} from ${img.base64Data.length} bytes`);
-        // Simple truncation for now - in a real app, we'd resize the image properly
-        return img.base64Data.substring(0, 500000);
-      }
+      // TODO: Implement proper client-side image resizing/compression instead of truncation.
+      // For now, we will send the full base64 data and rely on backend/API to handle large images,
+      // or we should add validation for image size before sending.
+      // if (img.base64Data && img.base64Data.length > 500000) { 
+      //   console.log(`Optimizing image ${img.id} from ${img.base64Data.length} bytes by truncation (BAD)`);
+      //   return img.base64Data.substring(0, 500000); 
+      // }
       return img.base64Data;
     }) || [];
     

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDirectLLMResponse } from './directLLM';
-import traceStorage from '../traceStorage';
+// import traceStorage from '../traceStorage'; // Removed as localStorage is not available server-side
 
 // Generate a random UUID for mock trace IDs
 function generateMockTraceId() {
@@ -311,8 +311,9 @@ function generateMockToolResponse(issueType: string) {
   }
 }
 
-// Store mock traces for retrieval
-const MOCK_TRACES = new Map();
+// Mock data (originally for local development/testing when backend is unavailable)
+// We will remove MOCK_TRACES logic from GET as per user request for this route to ONLY hit the backend.
+const MOCK_TRACES = new Map(); 
 
 // Import test utility
 import { testGeminiAPIConnection } from './testGeminiAPI';
@@ -449,9 +450,9 @@ export async function POST(request: NextRequest) {
     try {
 
       // Process any images for multimodal support
-      let processedImages = [];
+      let processedImages: { id: string; base64Data: string; contentType: string; name: string; url: string; }[] = [];
       if (images && images.length > 0) {
-        processedImages = images.map((imageData, index) => {
+        processedImages = images.map((imageData: string, index: number) => {
           return {
             id: `img-${index}-${Date.now()}`,
             base64Data: imageData,
@@ -524,15 +525,15 @@ export async function POST(request: NextRequest) {
         images: processedImages
       };
       
-      // Store both in memory and persistent storage for retrieval
+      // Store in memory for retrieval
       MOCK_TRACES.set(traceId, traceData);
-      traceStorage.saveTrace(traceData);
+      // traceStorage.saveTrace(traceData); // Removed: localStorage not available in API routes
       
       console.log(`Generated response with trace ID: ${traceId}`);
       
       // Return the LLM-generated response
       return NextResponse.json(llmResponse);
-    } catch (llmError) {
+    } catch (llmError: any) {
       console.error('Direct LLM call failed:', llmError);
       
       // Log more detailed error information
@@ -541,233 +542,21 @@ export async function POST(request: NextRequest) {
         console.error(`Stack trace: ${llmError.stack}`);
       }
       
-      // If direct LLM call fails, return a helpful error message
+      // If direct LLM call fails, return a simple error message JSON response
       const fallbackResponse = {
         trace_id: traceId,
-        response: "I apologize, but I'm currently having trouble processing your request. Your question has been received, but our AI system is experiencing temporary issues. Please try again in a few moments or contact support if the problem persists.",
+        response: "I apologize, but I'm currently having trouble processing your request. Our AI system is experiencing temporary issues. Please try again in a few moments or contact support if the problem persists.",
         reasoning: [],
         completed: false,
         error: {
           type: 'LLM_ERROR',
-          message: llmError instanceof Error ? llmError.message : 'Unknown error occurred'
+          message: llmError instanceof Error ? llmError.message : 'Unknown error occurred while contacting the AI model.'
         }
       };
       
       return NextResponse.json(fallbackResponse);
     }
-    
-    // Handle multimodal analysis in mock response
-    if (isMultimodal && images.length > 0) {
-      // Add image analysis steps to the reasoning
-      const imageSteps = images.map((image: any, index: number) => {
-        // Create a mock step for image analysis based on image type/name
-        const isErrorScreen = image.name.toLowerCase().includes('error') || 
-                             image.name.toLowerCase().includes('screenshot');
-        const isPrinter = image.name.toLowerCase().includes('printer') || 
-                         image.name.toLowerCase().includes('print');
-        const isHardware = image.name.toLowerCase().includes('computer') || 
-                          image.name.toLowerCase().includes('hardware') || 
-                          image.name.toLowerCase().includes('monitor');
-        
-        let toolName = "analyze_screenshot";
-        if (isPrinter || isHardware) {
-          toolName = "analyze_hardware_image";
-        }
-        
-        // Mock analysis results based on image type
-        let mockAnalysisResults = {
-          success: true,
-          content_type: "error_screen",
-          extracted_text: "Error code: 0x80004005. The application failed to initialize properly.",
-          ui_elements: ["error_dialog", "ok_button", "details_expander"],
-          detected_application: "Windows System",
-          error_codes: ["0x80004005"],
-          error_details: {
-            code: "0x80004005",
-            name: "E_FAIL",
-            description: "Unspecified error, commonly related to access permissions or network connectivity issues",
-            severity: "critical"
-          },
-          confidence: {
-            overall: 0.92,
-            error_recognition: 0.95,
-            ui_recognition: 0.90,
-            text_extraction: 0.94
-          },
-          preprocessing: {
-            type: "error_screen",
-            enhancement_level: "standard",
-            original_size: [1920, 1080],
-            processed_size: [1280, 720],
-            timestamp: new Date().toISOString()
-          },
-          suggested_actions: [
-            "Check application access permissions",
-            "Verify network connectivity if it's a network-dependent application",
-            "Restart the application with administrator privileges"
-          ],
-          analysis: "This appears to be a Windows application error, specifically error code 0x80004005 which often indicates access denied or configuration issues."
-        };
-        
-        if (isPrinter) {
-          mockAnalysisResults = {
-            success: true,
-            device_type: "printer",
-            model: "likely HP LaserJet series",
-            manufacturer: "HP",
-            status_indicators: [
-              {type: "led", color: "red", state: "solid", label: "error", location: "front panel"},
-              {type: "icon", color: "amber", state: "blinking", label: "paper jam", location: "display"}
-            ],
-            visible_issues: [
-              {type: "mechanical", component: "paper tray", condition: "paper jam visible"},
-              {type: "physical", component: "access panel", condition: "open"}
-            ],
-            assessment: "The printer appears to have a paper jam. The access panel is open, and the error light is on. Check for paper stuck in the feed path and close the panel properly.",
-            confidence: {
-              overall: 0.88,
-              model_identification: 0.85,
-              issue_detection: 0.92,
-              status_reading: 0.90
-            },
-            preprocessing: {
-              type: "hardware",
-              enhancement_level: "standard",
-              original_size: [1920, 1080],
-              processed_size: [1280, 720],
-              timestamp: new Date().toISOString()
-            },
-            suggested_actions: [
-              "Open the rear access door to remove jammed paper",
-              "Clear any paper fragments from the paper path",
-              "Check paper tray for proper paper loading",
-              "Close all access panels securely"
-            ]
-          };
-        } else if (isHardware) {
-          mockAnalysisResults = {
-            success: true,
-            device_type: "desktop computer",
-            model: "custom/assembled PC",
-            form_factor: "tower",
-            status_indicators: [
-              {type: "led", color: "blue", state: "solid", label: "power", location: "front panel"},
-              {type: "led", color: "amber", state: "flashing", label: "disk activity", location: "front panel"}
-            ],
-            visible_issues: [
-              {type: "cooling", component: "air vents", condition: "moderate to heavy dust accumulation"},
-              {type: "physical", component: "side panel", condition: "not fully secured/loose"},
-              {type: "fan", component: "case fans", condition: "spinning but audibly louder than normal"}
-            ],
-            visible_components: {
-              "cpu_cooler": "air cooler with dust buildup",
-              "gpu": "dual-slot dedicated graphics card",
-              "storage": "multiple drives visible",
-              "memory": "at least 2 DIMM modules installed"
-            },
-            assessment: "The computer appears to be running, but there is significant dust buildup in the cooling vents which could lead to overheating. The side panel is also not secured properly.",
-            confidence: {
-              overall: 0.90,
-              issue_detection: 0.93,
-              component_identification: 0.87,
-              status_reading: 0.89
-            },
-            preprocessing: {
-              type: "hardware",
-              enhancement_level: "standard",
-              original_size: [1920, 1080],
-              processed_size: [1280, 720],
-              timestamp: new Date().toISOString()
-            },
-            suggested_actions: [
-              "Power down the system before performing any maintenance",
-              "Clean dust from all cooling vents and internal components using compressed air",
-              "Properly secure the side panel after cleaning",
-              "Check fan bearings if noise persists after cleaning"
-            ]
-          };
-        }
-        
-        return {
-          step: mockToolResponse.steps.length + index + 1,
-          thought: `Analyzing the ${index + 1}${getOrdinalSuffix(index + 1)} attached image to extract additional context.`,
-          tool: toolName,
-          tool_input: {
-            image_data: "[Base64 encoded image data]",
-            hardware_type: isPrinter ? "printer" : isHardware ? "computer" : undefined
-          },
-          tool_output: mockAnalysisResults
-        };
-      });
-      
-      // Add the image analysis steps to the reasoning
-      const updatedSteps = [...mockToolResponse.steps, ...imageSteps];
-      
-      // Add a final thinking step to incorporate the image analysis
-      updatedSteps.push({
-        step: updatedSteps.length + 1,
-        thought: "I've analyzed both the text description and the image(s) provided. Let me integrate this information to provide a more accurate response."
-      });
-      
-      // Update the mock response with the additional steps
-      mockResponse.reasoning = updatedSteps;
-      
-      // Add analysis results to the images in the trace
-      const imagesWithAnalysis = images.map((image: any, index: number) => {
-        // Check if the index is valid before accessing
-        const baseIndex = mockToolResponse.steps.length;
-        const analysisIndex = baseIndex + index;
-        const hasAnalysisResult = analysisIndex < updatedSteps.length && 
-                                 updatedSteps[analysisIndex] && 
-                                 updatedSteps[analysisIndex].tool_output;
-        
-        return {
-          ...image,
-          analysisResults: hasAnalysisResult ? updatedSteps[analysisIndex].tool_output : {
-            success: true,
-            content_type: "unknown",
-            analysis: "Image analysis not available"
-          }
-        };
-      });
-      
-      // Store trace with images
-      const traceData = {
-        id: traceId,
-        timestamp: new Date().toISOString(),
-        input: userMessage,
-        final_output: mockToolResponse.response,
-        completed: true,
-        steps: updatedSteps,
-        classification: mockResponse.classification,
-        images: imagesWithAnalysis,
-        has_images: true
-      };
-      
-      // Store both in memory and persistent storage
-      MOCK_TRACES.set(traceId, traceData);
-      traceStorage.saveTrace(traceData);
-    } else {
-      // Store standard trace without images
-      const traceData = {
-        id: traceId,
-        timestamp: new Date().toISOString(),
-        input: userMessage,
-        final_output: mockToolResponse.response,
-        completed: true,
-        steps: mockToolResponse.steps,
-        classification: mockResponse.classification,
-        has_images: false
-      };
-      
-      // Store both in memory and persistent storage
-      MOCK_TRACES.set(traceId, traceData);
-      traceStorage.saveTrace(traceData);
-    }
-    
-    // Return mock data as fallback
-    return NextResponse.json(mockResponse);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Proxy API error:', error);
     return NextResponse.json(
       { error: 'Failed to process request' },
@@ -801,90 +590,43 @@ export async function GET(request: NextRequest) {
     // Get the backend URL from environment variables with default fallback
     const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
     
-    // If a trace ID was provided, get that specific trace
-    if (traceId) {
-      try {
-        console.log(`Trace retrieval request for trace ID: ${traceId}`);
-        
-        // Check if we have this trace in our local storage
-        // First try in-memory cache
-        if (MOCK_TRACES.has(traceId)) {
-          console.log(`Returning in-memory trace: ${traceId}`);
-          return NextResponse.json(MOCK_TRACES.get(traceId));
-        }
-        
-        // Then try persistent storage
-        const storedTrace = traceStorage.getTrace(traceId);
-        if (storedTrace) {
-          console.log(`Returning stored trace from localStorage: ${traceId}`);
-          // Also update in-memory cache
-          MOCK_TRACES.set(traceId, storedTrace);
-          return NextResponse.json(storedTrace);
-        }
-        
-        console.log(`Trace not found locally, trying backend at ${BACKEND_URL}/api/trace/${traceId}`);
-        
-        // Try to get the real trace from the backend
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/trace/${traceId}`, {
-            method: 'GET',
-            cache: 'no-store',
-          });
-          
-          if (response.ok) {
-            console.log(`Successfully retrieved trace ${traceId} from backend`);
-            const data = await response.json();
-            
-            // Also cache it for future use
-            MOCK_TRACES.set(traceId, data);
-            traceStorage.saveTrace(data);
-            
-            return NextResponse.json(data);
-          } else {
-            console.warn(`Backend returned ${response.status} for trace ${traceId}`);
-            // If backend doesn't have it, we'll fall through to the error response
-          }
-        } catch (backendError) {
-          console.error(`Error fetching from backend: ${backendError}`);
-          // We'll fall through to the 404 response
-        }
-        
-        // If we get here, we couldn't find the trace locally or from the backend
-        console.error(`Trace not found locally or from backend: ${traceId}`);
-        throw new Error(`Trace not found: ${traceId}`);
-      } catch (error) {
-        console.error(`Error handling trace request for ${traceId}:`, error);
+    if (!traceId) {
+      return NextResponse.json({ error: 'trace_id is required' }, { status: 400 });
+    }
+
+    console.log(`Proxy attempting to fetch trace ${traceId} ONLY from backend: ${BACKEND_URL}/api/trace/${traceId}`);
+
+    try {
+      const backendResponse = await fetch(`${BACKEND_URL}/api/trace/${traceId}`);
+      
+      if (!backendResponse.ok) {
+        const errorBody = await backendResponse.text();
+        console.error(`Backend returned ${backendResponse.status} for trace ${traceId}: ${errorBody.substring(0, 200)}`);
+        // Do not throw here, let the generic error handler below catch it as 'Trace not found'
+        // This maintains the behavior of 404 if backend doesn't find it.
         return NextResponse.json(
-          { error: `Trace not found: ${traceId}`, details: error.message },
+          { error: `Trace not found (from backend): ${traceId}`, details: `Backend status: ${backendResponse.status}` }, 
           { status: 404 }
         );
       }
-    }
-    
-    // If no trace ID was provided, return health check
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/health`, {
-        method: 'GET',
-        cache: 'no-store',
-      });
       
-      if (!response.ok) {
-        throw new Error('Backend service unavailable');
-      }
-      
-      return NextResponse.json({ status: 'ok', backendConnected: true });
-    } catch (_) {
-      // Return mock status as fallback
-      return NextResponse.json({ 
-        status: 'ok', 
-        backendConnected: false,
-        usingMock: true 
-      });
+      const trace = await backendResponse.json();
+      console.log(`Trace ${traceId} successfully retrieved from backend.`);
+      return NextResponse.json(trace);
+
+    } catch (fetchError: any) {
+      console.error(`Error fetching trace ${traceId} from backend:`, fetchError);
+      // This catch is for network errors or if the backend is down, not for 404s from the backend (handled above)
+      return NextResponse.json(
+        { error: `Failed to fetch trace from backend: ${traceId}`, details: fetchError.message }, 
+        { status: 502 } // Bad Gateway, as proxy couldn't reach backend properly
+      );
     }
-  } catch (error) {
-    console.error('API error:', error);
+
+  } catch (error: any) {
+    console.error('Overall API error in GET /api/proxy:', error);
     return NextResponse.json(
-      { error: 'Failed to process request' },
+      { error: 'An unexpected error occurred while fetching the trace.', details: error.message }, 
       { status: 500 }
     );
   }

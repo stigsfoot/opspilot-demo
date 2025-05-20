@@ -236,7 +236,7 @@ export async function callGeminiAPI(
           }
         );
       }
-    } catch (fetchError) {
+    } catch (fetchError: any) {
       console.error('Fetch error during Gemini API call:', fetchError);
       console.error('Fetch error details:', {
         name: fetchError.name,
@@ -288,46 +288,40 @@ export async function callGeminiAPI(
 
     const data = await response.json() as GeminiResponse;
     
-    // If no candidates were returned, throw an error
     if (!data.candidates || data.candidates.length === 0) {
-      throw new Error('No response received from Gemini API');
+      console.error('No response candidates from Gemini API');
+      // Use the fallback response creator
+      const responseText = await response.text(); // Get raw text for context
+      return createFallbackResponse(message, `No candidates in API response. Raw response: ${responseText.substring(0,500)}`);
     }
 
     // Get the text from the response
     const responseText = data.candidates[0].content.parts[0].text;
     
-    // Parse the response as JSON
+    // Parse the response as JSON, attempting to strip markdown if present
+    let cleanedText = responseText.trim();
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText.substring(7);
+      if (cleanedText.endsWith("```")) {
+        cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+      }
+    } else if (cleanedText.startsWith("```")) { // Handle cases where ``` is used without json specifier
+      cleanedText = cleanedText.substring(3);
+      if (cleanedText.endsWith("```")) {
+        cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+      }
+    }
+    
     let parsedResponse;
     try {
-      // The response should be JSON format
-      parsedResponse = JSON.parse(responseText);
-      
-      // Log successful parsing
-      console.log('Successfully parsed Gemini response as JSON');
-    } catch (error) {
-      console.error('Failed to parse Gemini response as JSON:', responseText);
-      
-      // Create a fallback response
-      return createFallbackResponse(message, 
-        "I'm sorry, but I'm having trouble processing your request properly. " +
-        "Please try again or contact support if the issue persists.");
+      parsedResponse = JSON.parse(cleanedText.trim());
+    } catch (e: any) {
+      console.error('Failed to parse cleaned JSON response from Gemini:', e);
+      console.error('Cleaned text that failed parsing:', cleanedText.substring(0, 500));
+      // Use the fallback response creator if JSON parsing fails
+      return createFallbackResponse(message, `Failed to parse JSON: ${e.message}. Response text: ${responseText.substring(0,500)}`);
     }
-
-    // Check if the response is properly formatted
-    if (!parsedResponse.response || typeof parsedResponse.response !== 'string') {
-      console.error('Invalid Gemini response format - missing response field:', parsedResponse);
-      
-      // If the entire response is just the raw JSON, return a proper response
-      if (responseText && typeof responseText === 'string' && responseText.includes('"thinking"') && responseText.includes('"classification"')) {
-        return createFallbackResponse(message, 
-          "I'm sorry, but I received an improperly formatted response. " +
-          "Please try again or contact support if the issue persists.");
-      }
-      
-      // Use the raw text as the response if no valid response field
-      parsedResponse.response = "I apologize, but I'm experiencing an issue with my response formatting. Please try again.";
-    }
-
+    
     // Extract the reasoning steps, classification, and response
     const reasoning = parsedResponse.thinking || [];
     const classification = parsedResponse.classification || {
@@ -402,10 +396,10 @@ function createFallbackResponse(message: string, responseText: string): GeminiLL
       if (jsonMatch && jsonMatch[1]) {
         finalResponse = jsonMatch[1];
       } else {
-        finalResponse = "I apologize, but I'm experiencing technical difficulties processing your request. Please try again in a moment.";
+        finalResponse = "I apologize, but I'm experiencing an issue with my response formatting. Please try again.";
       }
     } catch (e) {
-      finalResponse = "I apologize, but I'm experiencing technical difficulties. Our team has been notified of this issue.";
+      finalResponse = "I apologize, but I'm experiencing technical difficulties processing your request. Please try again in a moment.";
     }
   }
 

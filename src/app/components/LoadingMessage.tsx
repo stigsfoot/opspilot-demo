@@ -25,22 +25,30 @@ const imageLoadingSteps = [
 interface LoadingMessageProps {
   className?: string;
   processingImages?: boolean;
+  stage?: number;
 }
 
-export function LoadingMessage({ className, processingImages = false }: LoadingMessageProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+export function LoadingMessage({ className, processingImages = false, stage = 0 }: LoadingMessageProps) {
+  // If stage is provided, use it instead of the animated state
+  const [currentStep, setCurrentStep] = useState(stage || 0);
   
   // Select the appropriate loading steps based on whether we're processing images
   const loadingSteps = processingImages ? imageLoadingSteps : standardLoadingSteps;
   
-  // Advance through the loading steps every 1.5 seconds
+  // Advance through the loading steps every 1.5 seconds if no stage is provided
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStep((prev) => (prev + 1) % loadingSteps.length);
-    }, 1500);
-    
-    return () => clearInterval(interval);
-  }, [loadingSteps.length]);
+    // Only use the animation if stage is 0 (not specifically provided)
+    if (stage === 0) {
+      const interval = setInterval(() => {
+        setCurrentStep((prev) => (prev + 1) % loadingSteps.length);
+      }, 1500);
+      
+      return () => clearInterval(interval);
+    } else {
+      // If stage is provided, update currentStep when it changes
+      setCurrentStep(Math.min(stage - 1, loadingSteps.length - 1));
+    }
+  }, [loadingSteps.length, stage]);
 
   return (
     <Card className={cn(
