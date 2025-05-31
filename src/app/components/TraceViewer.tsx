@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, User, Loader2, ArrowRight, Wrench, Database, Search, BrainCircuit, Users, Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Bot, User, Loader2, ArrowRight, Wrench, BrainCircuit, Users, Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TraceViewerProps {
@@ -153,17 +153,20 @@ export function TraceViewer({ traceId, isOpen, onClose, initialTraceData }: Trac
             <TabsContent value="handoffs" className="flex-1 overflow-hidden flex flex-col">
               <ScrollArea className="flex-1 overflow-y-auto">
                 <div className="space-y-4 p-4 min-h-full">
-                  {getHandoffEvents(trace).length > 0 ? (
-                    getHandoffEvents(trace).map((handoff, index) => (
-                      <HandoffCard key={index} handoff={handoff} index={index} />
-                    ))
-                  ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <h3 className="text-lg font-medium mb-2">No Agent Handoffs</h3>
-                      <p>This issue was resolved without requiring handoffs between support teams.</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const handoffEvents = getHandoffEvents(trace);
+                    return handoffEvents.length > 0 ? (
+                      handoffEvents.map((handoff, index) => (
+                        <HandoffCard key={index} handoff={handoff} index={index} />
+                      ))
+                    ) : (
+                      <div className="text-center text-muted-foreground py-8">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <h3 className="text-lg font-medium mb-2">No Agent Handoffs</h3>
+                        <p>This issue was resolved without requiring handoffs between support teams.</p>
+                      </div>
+                    );
+                  })()}
                   <div className="h-20"></div> {/* Extra space to ensure content is scrollable */}
                 </div>
               </ScrollArea>

@@ -295,7 +295,7 @@ export function MessageImages({ images, className }: MessageImagesProps) {
                           <div className="flex flex-wrap gap-2">
                             {selectedImage.analysisResults.error_codes.map((code: string, i: number) => {
                               // Get detailed error info if available
-                              const errorDetails = selectedImage.analysisResults.error_details || {};
+                              const errorDetails = selectedImage.analysisResults?.error_details || {};
                               const details = typeof errorDetails === 'object' ? 
                                 (errorDetails.code === code ? errorDetails : null) : null;
                                 

@@ -71,9 +71,8 @@ export default function ChatBox() {
   // Message mutation
   const { mutate, isPending } = useMutation({
     mutationFn: (message: string) => {
-      // Convert images to base64 strings for API
-      const imageBase64s = pendingImages.map(img => img.base64Data);
-      return sendMessage(message, imageBase64s.length > 0 ? imageBase64s : undefined);
+      // Pass images directly as ImageAttachment objects
+      return sendMessage(message, pendingImages.length > 0 ? pendingImages : undefined);
     },
     onMutate: (newMessage) => {
       // Add user message
