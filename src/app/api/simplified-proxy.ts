@@ -87,6 +87,27 @@ export async function callDirectApi(message: string, images?: string[]): Promise
 
     return transformedResponse;
   } catch (error) {
+    // Handle timeout specifically
+    if (error instanceof DOMException && error.name === "AbortError") {
+      console.error('Backend API call timed out:', error);
+      
+      const traceId = `timeout-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+      
+      return {
+        response: "The request timed out. Please try again later.",
+        completed: false,
+        trace_id: traceId,
+        reasoning: [
+          {
+            step: 1,
+            thought: "Request timed out",
+            tool: "timeout_handler",
+            tool_output: { error: "Request exceeded the timeout limit of 30 seconds." }
+          }
+        ]
+      };
+    }
+
     console.error('Backend API call failed:', error);
     
     // Fallback to a simple error response

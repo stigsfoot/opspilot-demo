@@ -119,46 +119,89 @@ export type ChatState = {
  * Trace types for the agent reasoning view
  */
 
+/**
+ * Represents an agent handoff event in the ITSM workflow.
+ * Contains all metadata about transferring an issue between support tiers or specialized teams.
+ */
 export interface AgentHandoffEvent {
+  /** The type of event, always "agent_handoff" for handoff events */
   event_type: "agent_handoff";
+  /** The source agent or tier handling the issue initially */
   source_agent: string;
+  /** The target agent or tier receiving the handoff */
   target_agent: string;
+  /** ISO timestamp when the handoff occurred */
   handoff_timestamp: string;
+  /** Size of context data transferred in bytes */
   context_size: number;
+  /** Whether the handoff was approved or rejected */
   handoff_approved: boolean;
+  /** The target support team (e.g., "L2_security_operations") */
   target_team: string;
+  /** Reason for the handoff (e.g., "escalation_required", "vip_user") */
   handoff_reason: string;
+  /** Business impact level (low, medium, high, critical) */
   business_impact?: string;
+  /** Type of user (standard, vip, business_critical) */
   user_type?: string;
+  /** Whether this handoff receives priority handling */
   priority_handling?: boolean;
+  /** Whether the handoff requires immediate assignment */
   immediate_assignment?: boolean;
+  /** SLA category (low, medium, high, urgent) */
   sla_category?: string;
+  /** SLA target response time in minutes */
   sla_target_minutes?: number;
+  /** Human-readable estimated response time */
   estimated_response_time?: string;
+  /** Whether manager or CAB approval is required */
   requires_approval?: boolean;
+  /** List of approval steps required */
   approval_workflow?: string[];
+  /** Whether management has been notified */
   management_notification?: boolean;
+  /** When the handoff will be processed (immediate, next_business_day) */
   assignment_schedule?: string;
 }
 
+/**
+ * Context information transferred during an agent handoff.
+ * Contains user details, technical information, and handoff metadata.
+ */
 export interface HandoffContext {
+  /** Information about the user who submitted the issue */
   user_context: {
+    /** User's department (e.g., "Marketing", "Engineering") */
     department: string;
+    /** User's job role (e.g., "Software Engineer", "Marketing Manager") */
     role: string;
+    /** Classification of user priority (standard, vip, business_critical) */
     user_type: string;
+    /** User's physical location or office */
     location?: string;
   };
+  /** Technical details about the issue and classification */
   technical_context: {
+    /** The original issue description from the user */
     issue_description: string;
+    /** AI classification results with confidence scores */
     classification_results?: Record<string, number>;
+    /** List of solutions already attempted */
     attempted_solutions: any[];
+    /** Overall confidence score of the classification */
     confidence_score: number;
   };
+  /** Metadata about the handoff process itself */
   handoff_metadata: {
+    /** When the handoff occurred */
     handoff_timestamp: string;
+    /** Source support tier (e.g., "L1", "L2") */
     source_tier: string;
+    /** Target support tier (e.g., "L2", "L3") */
     target_tier: string;
+    /** Reason for escalation */
     handoff_reason: string;
+    /** Business justification for the handoff */
     business_justification: string;
   };
 }
