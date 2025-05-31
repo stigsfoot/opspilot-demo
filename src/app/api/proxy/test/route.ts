@@ -37,15 +37,15 @@ export async function GET(request: NextRequest) {
       },
       testResults: {
         gemini_2_5_pro: {
-          success: testResults.results.gemini_2_5_pro.success,
-          error: testResults.results.gemini_2_5_pro.error ? 
+          success: testResults.results?.gemini_2_5_pro?.success ?? false,
+          error: testResults.results?.gemini_2_5_pro?.error ? 
             (typeof testResults.results.gemini_2_5_pro.error === 'string' ? 
               testResults.results.gemini_2_5_pro.error.substring(0, 200) : 'Error object (not shown)') : 
             null
         },
         gemini_1_5_pro: {
-          success: testResults.results.gemini_1_5_pro.success,
-          error: testResults.results.gemini_1_5_pro.error ? 
+          success: testResults.results?.gemini_1_5_pro?.success ?? false,
+          error: testResults.results?.gemini_1_5_pro?.error ? 
             (typeof testResults.results.gemini_1_5_pro.error === 'string' ? 
               testResults.results.gemini_1_5_pro.error.substring(0, 200) : 'Error object (not shown)') : 
             null
@@ -54,11 +54,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Test endpoint error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json(
       { 
         error: 'Failed to run API test',
-        message: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined
       },
       { status: 500 }
     );

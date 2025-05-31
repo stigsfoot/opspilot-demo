@@ -3,7 +3,7 @@
  * across page reloads while in development mode
  */
 
-import { Trace } from './lib/types';
+import { Trace } from '../lib/types';
 
 // Type definition for trace storage
 type TraceStorage = {

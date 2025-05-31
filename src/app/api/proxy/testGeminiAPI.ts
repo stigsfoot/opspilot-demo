@@ -35,8 +35,8 @@ export async function testGeminiAPIConnection() {
   };
   
   const results = {
-    gemini_2_5_pro: { success: false, error: null, response: null },
-    gemini_1_5_pro: { success: false, error: null, response: null }
+    gemini_2_5_pro: { success: false, error: null as string | null, response: null },
+    gemini_1_5_pro: { success: false, error: null as string | null, response: null }
   };
   
   // Test Gemini 2.5 Pro
@@ -72,7 +72,7 @@ export async function testGeminiAPIConnection() {
       console.error('Gemini 2.5 Pro error:', errorText);
     }
   } catch (error) {
-    results.gemini_2_5_pro.error = error.message;
+    results.gemini_2_5_pro.error = error instanceof Error ? error.message : 'Unknown error';
     console.error('Gemini 2.5 Pro fetch error:', error);
   }
   
@@ -109,7 +109,7 @@ export async function testGeminiAPIConnection() {
       console.error('Gemini 1.5 Pro error:', errorText);
     }
   } catch (error) {
-    results.gemini_1_5_pro.error = error.message;
+    results.gemini_1_5_pro.error = error instanceof Error ? error.message : 'Unknown error';
     console.error('Gemini 1.5 Pro fetch error:', error);
   }
   
