@@ -119,6 +119,50 @@ export type ChatState = {
  * Trace types for the agent reasoning view
  */
 
+export interface AgentHandoffEvent {
+  event_type: "agent_handoff";
+  source_agent: string;
+  target_agent: string;
+  handoff_timestamp: string;
+  context_size: number;
+  handoff_approved: boolean;
+  target_team: string;
+  handoff_reason: string;
+  business_impact?: string;
+  user_type?: string;
+  priority_handling?: boolean;
+  immediate_assignment?: boolean;
+  sla_category?: string;
+  sla_target_minutes?: number;
+  estimated_response_time?: string;
+  requires_approval?: boolean;
+  approval_workflow?: string[];
+  management_notification?: boolean;
+  assignment_schedule?: string;
+}
+
+export interface HandoffContext {
+  user_context: {
+    department: string;
+    role: string;
+    user_type: string;
+    location?: string;
+  };
+  technical_context: {
+    issue_description: string;
+    classification_results?: Record<string, number>;
+    attempted_solutions: any[];
+    confidence_score: number;
+  };
+  handoff_metadata: {
+    handoff_timestamp: string;
+    source_tier: string;
+    target_tier: string;
+    handoff_reason: string;
+    business_justification: string;
+  };
+}
+
 export interface TraceStep {
   step?: number;
   step_number?: number;
@@ -129,6 +173,7 @@ export interface TraceStep {
   tool_input?: any;
   tool_output?: any;
   result?: any;
+  handoff_event?: AgentHandoffEvent;
 }
 
 export interface CategoryConfidence {
@@ -152,4 +197,5 @@ export interface Trace {
   has_images?: boolean;
   has_system_info?: boolean;
   visual_guides?: VisualTroubleshootingGuide[];
+  handoff_events?: AgentHandoffEvent[];
 }

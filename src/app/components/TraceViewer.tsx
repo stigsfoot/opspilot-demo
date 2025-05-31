@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, User, Loader2, ArrowRight, Wrench, Database, Search, BrainCircuit } from "lucide-react";
+import { Bot, User, Loader2, ArrowRight, Wrench, Database, Search, BrainCircuit, Users, Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TraceViewerProps {
@@ -118,6 +118,7 @@ export function TraceViewer({ traceId, isOpen, onClose, initialTraceData }: Trac
             <TabsList>
               <TabsTrigger value="steps">Reasoning Steps</TabsTrigger>
               <TabsTrigger value="tools">Tool Calls</TabsTrigger>
+              <TabsTrigger value="handoffs">Agent Handoffs</TabsTrigger>
               <TabsTrigger value="classification">Classification</TabsTrigger>
               <TabsTrigger value="summary">Summary</TabsTrigger>
             </TabsList>
@@ -143,6 +144,26 @@ export function TraceViewer({ traceId, isOpen, onClose, initialTraceData }: Trac
                     .map((step, index) => (
                       <ToolCard key={index} step={step} index={index} />
                     ))}
+                  <div className="h-20"></div> {/* Extra space to ensure content is scrollable */}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+            
+            {/* Agent Handoffs Tab */}
+            <TabsContent value="handoffs" className="flex-1 overflow-hidden flex flex-col">
+              <ScrollArea className="flex-1 overflow-y-auto">
+                <div className="space-y-4 p-4 min-h-full">
+                  {getHandoffEvents(trace).length > 0 ? (
+                    getHandoffEvents(trace).map((handoff, index) => (
+                      <HandoffCard key={index} handoff={handoff} index={index} />
+                    ))
+                  ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <h3 className="text-lg font-medium mb-2">No Agent Handoffs</h3>
+                      <p>This issue was resolved without requiring handoffs between support teams.</p>
+                    </div>
+                  )}
                   <div className="h-20"></div> {/* Extra space to ensure content is scrollable */}
                 </div>
               </ScrollArea>
@@ -286,6 +307,226 @@ export function TraceViewer({ traceId, isOpen, onClose, initialTraceData }: Trac
   );
 }
 
+// Helper function to extract handoff events from trace
+function getHandoffEvents(trace: Trace) {
+  const handoffs = [];
+  
+  // Check trace.handoff_events array
+  if (trace.handoff_events) {
+    handoffs.push(...trace.handoff_events);
+  }
+  
+  // Check steps for handoff tool calls
+  trace.steps.forEach(step => {
+    if (step.tool === "agent_handoff" || step.action === "agent_handoff") {
+      const handoffData = step.tool_output || step.result;
+      if (handoffData && typeof handoffData === 'object') {
+        handoffs.push({
+          ...handoffData,
+          step_number: step.step || step.step_number,
+          from_step: true
+        });
+      }
+    }
+    
+    // Check for handoff events within steps
+    if (step.handoff_event) {
+      handoffs.push({
+        ...step.handoff_event,
+        step_number: step.step || step.step_number,
+        from_step: true
+      });
+    }
+  });
+  
+  return handoffs;
+}
+
+// Helper function to format team names
+function formatTeamName(teamName: string): string {
+  return teamName
+    .replace(/_/g, ' ')
+    .replace(/L\d+/g, (match) => match.toUpperCase())
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+// Helper function to get priority color
+function getPriorityColor(priority?: string): string {
+  switch (priority) {
+    case 'urgent': return 'text-red-600 bg-red-50 border-red-200';
+    case 'high': return 'text-orange-600 bg-orange-50 border-orange-200';
+    case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+    case 'low': return 'text-green-600 bg-green-50 border-green-200';
+    default: return 'text-gray-600 bg-gray-50 border-gray-200';
+  }
+}
+
+// Helper function to get user type badge color
+function getUserTypeBadgeColor(userType?: string): string {
+  switch (userType) {
+    case 'vip': return 'bg-purple-100 text-purple-800';
+    case 'business_critical': return 'bg-orange-100 text-orange-800';
+    case 'standard': return 'bg-blue-100 text-blue-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function HandoffCard({ handoff, index }: { handoff: Record<string, any>; index: number }) {
+  const isApproved = handoff.handoff_approved;
+  const requiresApproval = handoff.requires_approval;
+  const isImmediate = handoff.immediate_assignment;
+  
+  return (
+    <Card className={`border-2 ${isApproved ? 'border-green-200' : 'border-red-200'}`}>
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Agent Handoff #{index + 1}
+            {handoff.from_step && (
+              <Badge variant="outline" className="text-xs">
+                Step {handoff.step_number}
+              </Badge>
+            )}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {isApproved ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : (
+              <XCircle className="h-4 w-4 text-red-500" />
+            )}
+            {isImmediate && (
+              <Badge variant="destructive" className="text-xs">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Urgent
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="py-3 px-4 space-y-4">
+        {/* Handoff Flow */}
+        <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded">
+            <Bot className="h-3 w-3" />
+            <span className="font-medium">
+              {formatTeamName(handoff.source_agent || 'L1 Agent')}
+            </span>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded">
+            <Users className="h-3 w-3" />
+            <span className="font-medium">
+              {formatTeamName(handoff.target_team || handoff.target_agent || 'Unknown Team')}
+            </span>
+          </div>
+        </div>
+
+        {/* Status and Priority */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-xs font-medium mb-1 text-muted-foreground">Status</h4>
+            <Badge variant={isApproved ? "default" : "destructive"} className="text-xs">
+              {isApproved ? "Approved" : "Rejected"}
+            </Badge>
+          </div>
+          {handoff.sla_category && (
+            <div>
+              <h4 className="text-xs font-medium mb-1 text-muted-foreground">Priority</h4>
+              <Badge className={`text-xs ${getPriorityColor(handoff.sla_category)}`}>
+                {handoff.sla_category?.toUpperCase()}
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Business Context */}
+        {(handoff.business_impact || handoff.user_type) && (
+          <div className="grid grid-cols-2 gap-4">
+            {handoff.business_impact && (
+              <div>
+                <h4 className="text-xs font-medium mb-1 text-muted-foreground">Business Impact</h4>
+                <Badge className={`text-xs ${getPriorityColor(handoff.business_impact)}`}>
+                  {handoff.business_impact?.toUpperCase()}
+                </Badge>
+              </div>
+            )}
+            {handoff.user_type && (
+              <div>
+                <h4 className="text-xs font-medium mb-1 text-muted-foreground">User Type</h4>
+                <Badge className={`text-xs ${getUserTypeBadgeColor(handoff.user_type)}`}>
+                  {handoff.user_type?.replace('_', ' ').toUpperCase()}
+                </Badge>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Handoff Reason */}
+        <div>
+          <h4 className="text-xs font-medium mb-1 text-muted-foreground">Handoff Reason</h4>
+          <p className="text-sm">{handoff.handoff_reason?.replace(/_/g, ' ')}</p>
+        </div>
+
+        {/* Timeline Information */}
+        {(handoff.estimated_response_time || handoff.sla_target_minutes) && (
+          <div className="bg-muted/50 p-3 rounded text-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4" />
+              <span className="font-medium">Timeline</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {handoff.estimated_response_time && (
+                <div>
+                  <span className="text-muted-foreground">Est. Response:</span>
+                  <div>{handoff.estimated_response_time}</div>
+                </div>
+              )}
+              {handoff.sla_target_minutes && (
+                <div>
+                  <span className="text-muted-foreground">SLA Target:</span>
+                  <div>{Math.floor(handoff.sla_target_minutes / 60)}h {handoff.sla_target_minutes % 60}m</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Approval Workflow */}
+        {requiresApproval && handoff.approval_workflow && (
+          <div>
+            <h4 className="text-xs font-medium mb-2 text-muted-foreground">Required Approvals</h4>
+            <div className="flex flex-wrap gap-1">
+              {handoff.approval_workflow.map((approval: string, i: number) => (
+                <Badge key={i} variant="outline" className="text-xs">
+                  {approval.replace(/_/g, ' ')}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Management Notification */}
+        {handoff.management_notification && (
+          <div className="flex items-center gap-2 text-sm bg-amber-50 p-2 rounded">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <span className="text-amber-800">Management has been notified</span>
+          </div>
+        )}
+
+        {/* Context Transfer Info */}
+        {handoff.context_transferred && (
+          <div className="text-xs text-muted-foreground">
+            Context transferred: {handoff.context_size || 'N/A'} bytes
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StepCard({ step, index }: { step: TraceStep; index: number }) {
   // Function to render the step content based on the type
   const renderStepContent = () => {
@@ -344,9 +585,17 @@ function StepCard({ step, index }: { step: TraceStep; index: number }) {
       <CardHeader className="py-3 px-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm">Step {index + 1}</CardTitle>
-          <Badge variant="outline" className="text-xs">
-            {step.thought ? 'Reasoning' : step.action || step.tool ? 'Tool Call' : 'Other'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              {step.thought ? 'Reasoning' : step.action || step.tool ? 'Tool Call' : 'Other'}
+            </Badge>
+            {(step.tool === 'agent_handoff' || step.action === 'agent_handoff' || step.handoff_event) && (
+              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                <Users className="h-3 w-3 mr-1" />
+                Handoff
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="py-3 px-4">
